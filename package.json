@@ -1,0 +1,22 @@
+{
+  "name": "checkout-extension",
+  "version": "1.0.0",
+  "license": "UNLICENSED",
+  "scripts": {
+    "shopify": "shopify",
+    "build": "shopify app build",
+    "dev": "shopify app dev",
+    "info": "shopify app info",
+    "generate": "shopify app generate extension",
+    "deploy": "shopify app deploy"
+  },
+  "dependencies": {},
+  "trustedDependencies": [
+    "@shopify/plugin-cloudflare"
+  ],
+  "author": "User",
+  "private": true,
+  "workspaces": [
+    "extensions/*"
+  ]
+}
