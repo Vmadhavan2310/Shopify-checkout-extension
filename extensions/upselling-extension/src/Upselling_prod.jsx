@@ -4,7 +4,7 @@ import {
   useApi,
   useApplyCartLinesChange,
 } from "@shopify/ui-extensions/checkout/preact";
-import { useEffect, useState, useLayoutEffect } from "preact/hooks";
+import { useState, useLayoutEffect } from "preact/hooks";
 
 export default async () => {
   render(<Upselling_prod />, document.body);
@@ -19,6 +19,7 @@ function Upselling_prod() {
     variantId: "",
     productId: "",
   });
+  const [trackProd, setTrackProd] = useState({});
 
   const metaProducts = useAppMetafields({
     type: "shop",
@@ -69,29 +70,41 @@ function Upselling_prod() {
         )
         .then((res) => {
           if (res.data && res.data.nodes) {
-            setProducts(res.data.nodes.filter(Boolean));
+            const prodObj = {};
+            const filteredProducts = res.data.nodes.filter(Boolean);
+            setProducts(filteredProducts);
+            filteredProducts.forEach(p => {
+              const curr = p.variants.nodes.find(v => v.availableForSale == true);
+              prodObj[p.id] = {
+                id: curr?.id || null,
+                price: curr?.price.amount || p.variants.nodes[0].price.amount
+              }
+            })
+            setTrackProd(prodObj)
           }
         });
     }
   }, [metaObj]);
 
   async function handleAddToCart(id) {
-    setProduct({ ...selectedProduct, productId: id });
+    setProduct({ variantId: trackProd[id].id, productId: id });
     await addToCart({
       type: "addCartLine",
-      merchandiseId: selectedProduct.variantId,
+      merchandiseId: trackProd[id].id,
       quantity: 1,
     });
     setProduct({});
   }
   return (
     <>
-      <s-section heading="Upselling Products">
+      <s-section>
+             <s-box padding="small-100">
+      <s-heading>Upselling Products</s-heading>
+    </s-box>
         <s-scroll-box maxBlockSize="400px" padding="large">
           <s-stack gap="base">
             {products.length > 0 ? (
               products.map((item) => {
-                let variant = item?.variants.nodes[0];
                 return (
                   <s-grid gridTemplateColumns="80px auto 100px">
                     <s-grid-item>
@@ -113,12 +126,17 @@ function Upselling_prod() {
                               return (
                                 <s-press-button
                                   disabled={!v.availableForSale}
-                                  pressed={selectedProduct.variantId == v.id}
-                                  onClick={() =>
-                                    setProduct({
-                                      variantId: v.id,
-                                      productId: "",
-                                    })
+                                  pressed={v.id == trackProd[item.id]?.id || false}
+                                  onClick={() => 
+                                    setTrackProd((prev) => (
+                                      {
+                                        ...prev,
+                                        [item.id]: {
+                                          id: v.id,
+                                          price: v.price.amount
+                                        }
+                                      }
+                                    ))                              
                                   }
                                 >
                                   {v.title.toUpperCase()}
@@ -131,14 +149,15 @@ function Upselling_prod() {
                     <s-grid-item>
                       <s-stack direction="block" alignItems="end" gap="small">
                         <s-text>
-                          {Api.i18n.formatCurrency(variant.price.amount)}
+                          {Api.i18n.formatCurrency(trackProd[item.id].price)}
                         </s-text>
                         <s-button
                           variant="primary"
+                          disabled={!trackProd[item.id].id}
                           onClick={() => handleAddToCart(item.id)}
                           loading={item.id == selectedProduct.productId}
                         >
-                          Add Cart
+                          {trackProd[item.id].id ? 'Add Cart' : 'Sold Out'}
                         </s-button>
                       </s-stack>
                     </s-grid-item>
